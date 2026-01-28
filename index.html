@@ -105,7 +105,7 @@
                 <div class="grid grid-cols-3 gap-4">
                     <div class="col-span-1">
                         <label class="block text-sm font-medium text-slate-700 mb-1">個数 <span class="text-red-500">*</span></label>
-                        <input type="number" id="itemQuantity" min="0" value="1" class="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <input type="number" id="itemQuantity" min="0" step="0.25" value="1" class="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
                     <div class="col-span-2">
                         <label class="block text-sm font-medium text-slate-700 mb-1">消費期限</label>
@@ -144,7 +144,7 @@
                             <div id="lowStockConfig" class="pl-6 hidden">
                                 <div class="flex items-center gap-2">
                                     <span class="text-xs">残り</span>
-                                    <input type="number" id="lowStockThreshold" value="1" min="1" class="w-16 p-1 border rounded text-center">
+                                    <input type="number" id="lowStockThreshold" value="1" min="0.25" step="0.25" class="w-20 p-1 border rounded text-center">
                                     <span class="text-xs">個以下で通知</span>
                                 </div>
                             </div>
@@ -464,6 +464,7 @@
                     badges += `<span class="${badgeColor} text-white text-[10px] px-2 py-0.5 rounded-full mr-1">${a.msg}</span>`;
                 });
 
+                // カードの内容を0.25単位のボタン付きで生成
                 card.innerHTML = `
                     <div class="flex justify-between items-start mb-2">
                         <div>
@@ -481,16 +482,15 @@
                         ${item.openDate ? `<div class="flex items-center gap-2"><i class="far fa-folder-open w-4 text-center"></i> 開封: ${item.openDate}</div>` : ''}
                     </div>
 
-                    <div class="flex items-center justify-between mt-auto bg-slate-50 p-2 rounded-lg">
-                        <span class="text-xs font-bold text-slate-400">在庫</span>
-                        <div class="flex items-center gap-3">
-                            <button onclick="updateStock('${item.id}', -1)" class="w-10 h-10 rounded-full bg-white border border-slate-200 shadow-sm text-indigo-600 hover:bg-red-50 hover:text-red-600 active:scale-95 transition flex items-center justify-center text-lg font-bold">
-                                <i class="fas fa-minus"></i>
-                            </button>
-                            <span class="text-xl font-bold w-8 text-center ${item.quantity === 0 ? 'text-red-500' : 'text-slate-700'}">${item.quantity}</span>
-                            <button onclick="updateStock('${item.id}', 1)" class="w-10 h-10 rounded-full bg-white border border-slate-200 shadow-sm text-indigo-600 hover:bg-indigo-50 active:scale-95 transition flex items-center justify-center text-lg font-bold">
-                                <i class="fas fa-plus"></i>
-                            </button>
+                    <div class="mt-auto bg-slate-50 p-3 rounded-lg">
+                        <div class="flex justify-between items-baseline mb-2">
+                            <span class="text-xs font-bold text-slate-400">在庫数</span>
+                            <span class="text-2xl font-bold ${item.quantity === 0 ? 'text-red-500' : 'text-slate-700'}">${item.quantity}</span>
+                        </div>
+                        <div class="grid grid-cols-3 gap-1">
+                            <button onclick="updateStock('${item.id}', -1)" class="bg-white border border-slate-200 rounded py-2 text-indigo-600 hover:bg-red-50 hover:text-red-600 font-bold text-sm shadow-sm transition active:scale-95">-1</button>
+                            <button onclick="updateStock('${item.id}', -0.25)" class="bg-white border border-slate-200 rounded py-2 text-indigo-600 hover:bg-red-50 hover:text-red-600 font-bold text-xs shadow-sm transition active:scale-95">-0.25</button>
+                            <button onclick="updateStock('${item.id}', 1)" class="bg-white border border-slate-200 rounded py-2 text-indigo-600 hover:bg-indigo-50 font-bold text-sm shadow-sm transition active:scale-95">+1</button>
                         </div>
                     </div>
                 `;
@@ -577,7 +577,8 @@
             const id = document.getElementById('itemId').value;
             const name = document.getElementById('itemName').value.trim();
             const category = document.getElementById('itemCategory').value;
-            const quantity = parseInt(document.getElementById('itemQuantity').value);
+            // 変更: parseFloatで小数を扱えるようにする
+            const quantity = parseFloat(document.getElementById('itemQuantity').value);
             const expiryDate = document.getElementById('itemExpiry').value || null;
             
             if (!name || !category) {
@@ -614,7 +615,8 @@
                 openDate: document.getElementById('itemOpenDate').value || null,
                 zeroAction: document.querySelector('input[name="zeroAction"]:checked').value,
                 lowStockNotify: document.getElementById('lowStockNotify').checked,
-                lowStockThreshold: parseInt(document.getElementById('lowStockThreshold').value),
+                // 変更: parseFloatで小数を扱えるようにする
+                lowStockThreshold: parseFloat(document.getElementById('lowStockThreshold').value),
                 replacementNotify: document.getElementById('replacementNotify').checked,
                 replacementValue: parseInt(document.getElementById('replacementValue').value),
                 replacementUnit: document.getElementById('replacementUnit').value
@@ -643,7 +645,8 @@
             const item = appData.items.find(i => i.id === id);
             if (!item) return;
 
-            const newQuantity = item.quantity + change;
+            // 変更: 浮動小数点の計算誤差を防ぐため、一度整数にして計算する
+            let newQuantity = (item.quantity * 100 + change * 100) / 100;
 
             if (newQuantity < 0) return; // マイナスにはしない
 
