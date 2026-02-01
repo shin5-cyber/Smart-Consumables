@@ -6,8 +6,6 @@
     <title>Smart Supplies Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <!-- バーコードリーダーライブラリ -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
     <style>
         body { font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif; }
         /* カスタムスクロールバー */
@@ -21,26 +19,6 @@
         }
         .animate-fade-in { animation: fadeIn 0.3s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* スキャナー用スタイル */
-        #scanner-container video {
-            width: 100%;
-            height: auto;
-            border-radius: 8px;
-        }
-        #scanner-container canvas {
-            display: none; /* 解析用のキャンバスは隠す */
-        }
-        .scan-overlay {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80%;
-            height: 100px;
-            border: 2px solid rgba(255, 0, 0, 0.5);
-            pointer-events: none;
-        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 pb-20">
@@ -110,49 +88,34 @@
             </div>
             <div class="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
                 <input type="hidden" id="itemId">
-
-                <!-- スキャナーエリア (通常は非表示) -->
-                <div id="scanner-wrapper" class="hidden mb-4 relative bg-black rounded-lg overflow-hidden">
-                    <div id="scanner-container" class="relative"></div>
-                    <div class="scan-overlay"></div>
-                    <button onclick="stopScanner()" class="absolute top-2 right-2 bg-white/80 text-black px-2 py-1 rounded text-xs font-bold z-10">キャンセル</button>
-                    <p class="text-white text-xs text-center p-2">バーコードを枠内に映してください</p>
-                </div>
                 
                 <!-- 基本情報 -->
-                <!-- レイアウト変更: 商品名エリアを独立させて広くする -->
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">商品名 <span class="text-red-500">*</span></label>
-                    <div class="flex gap-2">
-                        <input type="text" id="itemName" list="nameSuggestions" class="flex-1 p-2 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="例: 牛乳">
-                        <button onclick="startScanner()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-3 rounded transition flex items-center gap-2 whitespace-nowrap" title="バーコード読取">
-                            <i class="fas fa-barcode text-lg"></i> <span class="text-sm font-bold">スキャン</span>
-                        </button>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">商品名 <span class="text-red-500">*</span></label>
+                        <input type="text" id="itemName" list="nameSuggestions" class="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="例: 牛乳">
+                        <datalist id="nameSuggestions"></datalist>
                     </div>
-                    <datalist id="nameSuggestions"></datalist>
-                </div>
-
-                <!-- レイアウト変更: カテゴリと個数を並べる -->
-                <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-1">カテゴリ <span class="text-red-500">*</span></label>
                         <select id="itemCategory" class="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none"></select>
                     </div>
-                    <div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="col-span-1">
                         <label class="block text-sm font-medium text-slate-700 mb-1">個数 <span class="text-red-500">*</span></label>
                         <input type="number" id="itemQuantity" min="0" step="0.25" value="1" class="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
+                    <div class="col-span-2">
                         <label class="block text-sm font-medium text-slate-700 mb-1">消費期限</label>
                         <input type="date" id="itemExpiry" class="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">開封日 (任意)</label>
-                        <input type="date" id="itemOpenDate" class="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none">
-                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">開封日 (任意)</label>
+                    <input type="date" id="itemOpenDate" class="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none">
                 </div>
 
                 <!-- 詳細設定アコーディオン -->
@@ -568,12 +531,6 @@
             document.getElementById('replacementValue').value = 1;
             document.getElementById('replacementUnit').value = 'days';
 
-            // スキャナーリセット
-            document.getElementById('scanner-wrapper').classList.add('hidden');
-            if (Quagga.initialized) { // もし起動してたら止める
-                stopScanner();
-            }
-
             // オートコンプリート用のリスト更新
             const uniqueNames = [...new Set(appData.items.map(i => i.name))];
             const datalist = document.getElementById('nameSuggestions');
@@ -606,7 +563,6 @@
 
         function closeItemModal() {
             document.getElementById('itemModal').classList.add('hidden');
-            stopScanner(); // モーダル閉じるときはカメラも止める
         }
 
         function updateFormVisibility() {
@@ -709,114 +665,6 @@
             item.quantity = newQuantity;
             saveData();
         }
-
-        // --- バーコードスキャン機能 ---
-
-        let isScanning = false;
-
-        function startScanner() {
-            if (isScanning) return;
-            
-            const wrapper = document.getElementById('scanner-wrapper');
-            wrapper.classList.remove('hidden');
-
-            Quagga.init({
-                inputStream : {
-                    name : "Live",
-                    type : "LiveStream",
-                    target: document.querySelector('#scanner-container'),
-                    constraints: {
-                        facingMode: "environment", // 背面カメラ優先
-                        width: { min: 640 },
-                        height: { min: 480 },
-                        aspectRatio: { min: 1, max: 2 }
-                    }
-                },
-                decoder : {
-                    readers : ["ean_reader", "ean_8_reader"] // JANコード (EAN)
-                },
-                locate: true
-            }, function(err) {
-                if (err) {
-                    console.error(err);
-                    alert("カメラの起動に失敗しました。HTTPS環境またはローカルホストで実行してください。");
-                    stopScanner();
-                    return;
-                }
-                console.log("Initialization finished. Ready to start");
-                Quagga.start();
-                isScanning = true;
-                Quagga.initialized = true;
-            });
-
-            Quagga.onDetected(function(data) {
-                if (!isScanning) return;
-                
-                const code = data.codeResult.code;
-                // 誤検知防止のため、単純なチェック（必要に応じて）
-                if (code) {
-                    stopScanner();
-                    fetchProductData(code);
-                }
-            });
-        }
-
-        function stopScanner() {
-            if (isScanning) {
-                Quagga.stop();
-                isScanning = false;
-            }
-            document.getElementById('scanner-wrapper').classList.add('hidden');
-            // コンテナの中身をクリア（canvasなどが残るため）
-            document.getElementById('scanner-container').innerHTML = "";
-        }
-
-        async function fetchProductData(code) {
-            showToast(`バーコード読み取り成功: ${code}`);
-            
-            // ローディング表示（名前欄に）
-            const nameInput = document.getElementById('itemName');
-            nameInput.value = "検索中...";
-            nameInput.disabled = true;
-
-            try {
-                // Open Food Facts API (無料・登録不要)
-                const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${code}.json`);
-                const data = await response.json();
-
-                if (data.status === 1) {
-                    // 商品名が見つかった場合
-                    let productName = data.product.product_name_ja || data.product.product_name || "";
-                    if (!productName && data.product.brands) {
-                        productName = `${data.product.brands} 商品`;
-                    }
-                    
-                    if (productName) {
-                        nameInput.value = productName;
-                        showToast("商品情報が見つかりました！");
-                        
-                        // カテゴリ推測（簡易）
-                        if (data.product.categories_tags) {
-                            // タグに特定のキーワードがあればカテゴリ自動選択（例）
-                            // 現状は未実装（ユーザーに選択させる）
-                        }
-                    } else {
-                        nameInput.value = `商品(JAN:${code})`;
-                        showToast("商品名は登録されていませんでした");
-                    }
-                } else {
-                    nameInput.value = `商品(JAN:${code})`;
-                    showToast("データベースに登録がありませんでした", true);
-                }
-            } catch (error) {
-                console.error("Fetch error", error);
-                nameInput.value = `商品(JAN:${code})`;
-                showToast("商品情報の取得に失敗しました", true);
-            } finally {
-                nameInput.disabled = false;
-            }
-        }
-
 
         // --- カテゴリ管理 ---
 
