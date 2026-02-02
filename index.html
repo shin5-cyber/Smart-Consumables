@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Supplies Manager</title>
+    <title>Smart Supplies Manager (AI Local)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         body { font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif; }
-        /* カスタムスクロールバー */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         ::-webkit-scrollbar-track { background: #f1f5f9; }
@@ -19,6 +18,9 @@
         }
         .animate-fade-in { animation: fadeIn 0.3s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* ローディングオーバーレイ */
+        #loadingOverlay { backdrop-filter: blur(2px); }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 pb-20">
@@ -27,11 +29,11 @@
     <header class="bg-indigo-600 text-white p-4 shadow-lg sticky top-0 z-50">
         <div class="max-w-4xl mx-auto flex justify-between items-center">
             <h1 class="text-xl font-bold flex items-center gap-2">
-                <i class="fas fa-boxes"></i> SSM
+                <i class="fas fa-robot"></i> SSM AI <span class="text-xs bg-indigo-500 px-2 py-0.5 rounded">Local</span>
             </h1>
-            <div class="flex gap-3">
+            <div class="flex gap-3 items-center">
                 <button onclick="openDataModal()" class="text-sm bg-indigo-500 hover:bg-indigo-400 px-3 py-1 rounded transition">
-                    <i class="fas fa-sync-alt"></i> データ共有
+                    <i class="fas fa-sync-alt"></i> 共有
                 </button>
                 <button onclick="openSettingsModal()" class="text-sm bg-indigo-500 hover:bg-indigo-400 px-3 py-1 rounded transition">
                     <i class="fas fa-cog"></i> 設定
@@ -41,23 +43,16 @@
     </header>
 
     <div class="max-w-4xl mx-auto p-4 space-y-6">
-
         <!-- アラートセンター -->
-        <div id="alertSection" class="hidden space-y-2">
-            <!-- JSでアラートを注入 -->
-        </div>
+        <div id="alertSection" class="hidden space-y-2"></div>
 
         <!-- コントロールパネル -->
         <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-            <!-- カテゴリフィルター -->
             <div class="mb-4">
                 <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">カテゴリ</label>
-                <div id="categoryFilters" class="flex flex-wrap gap-2">
-                    <!-- JSで生成 -->
-                </div>
+                <div id="categoryFilters" class="flex flex-wrap gap-2"></div>
             </div>
 
-            <!-- ソート・追加ボタン -->
             <div class="flex flex-col sm:flex-row justify-between items-center gap-4 border-t border-slate-100 pt-4">
                 <div class="flex gap-2 items-center w-full sm:w-auto text-sm">
                     <span class="text-slate-500 whitespace-nowrap"><i class="fas fa-sort"></i> 並替:</span>
@@ -75,7 +70,7 @@
 
         <!-- 在庫リスト -->
         <div id="inventoryList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <!-- JSでアイテムカードを生成 -->
+            <!-- JSで生成 -->
         </div>
     </div>
 
@@ -86,9 +81,21 @@
                 <h2 id="modalTitle" class="font-bold text-lg">在庫登録</h2>
                 <button onclick="closeItemModal()" class="hover:text-indigo-200"><i class="fas fa-times text-xl"></i></button>
             </div>
-            <div class="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+            <div class="p-6 space-y-4 max-h-[80vh] overflow-y-auto relative">
                 <input type="hidden" id="itemId">
                 
+                <!-- AIスキャンボタン -->
+                <div class="bg-indigo-50 border border-indigo-100 rounded-lg p-3 mb-4 flex items-center justify-between">
+                    <div>
+                        <h3 class="font-bold text-indigo-800 text-sm"><i class="fas fa-magic"></i> AI自動入力</h3>
+                        <p class="text-xs text-indigo-600">写真から商品名と個数を自動判定します</p>
+                    </div>
+                    <label class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold shadow-sm transition cursor-pointer flex items-center gap-2">
+                        <i class="fas fa-camera"></i> スキャン
+                        <input type="file" accept="image/*" capture="environment" class="hidden" onchange="handleImageScan(this)">
+                    </label>
+                </div>
+
                 <!-- 基本情報 -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -125,8 +132,7 @@
                         <span class="transition group-open:rotate-180"><i class="fas fa-chevron-down"></i></span>
                     </summary>
                     <div class="text-slate-600 mt-4 space-y-4 text-sm">
-                        
-                        <!-- 在庫切れ時の動作 -->
+                        <!-- 設定項目（省略なし） -->
                         <div>
                             <label class="block font-medium mb-1">在庫が0になった時</label>
                             <div class="flex gap-4">
@@ -134,8 +140,6 @@
                                 <label class="flex items-center"><input type="radio" name="zeroAction" value="delete" class="mr-2 text-indigo-600"> 削除する</label>
                             </div>
                         </div>
-
-                        <!-- 在庫僅少アラート -->
                         <div class="border-t border-slate-200 pt-3">
                             <label class="flex items-center mb-2 font-medium cursor-pointer">
                                 <input type="checkbox" id="lowStockNotify" class="mr-2 rounded text-indigo-600 focus:ring-indigo-500">
@@ -149,8 +153,6 @@
                                 </div>
                             </div>
                         </div>
-
-                        <!-- 交換時期アラート -->
                         <div class="border-t border-slate-200 pt-3">
                             <label class="flex items-center mb-2 font-medium cursor-pointer">
                                 <input type="checkbox" id="replacementNotify" class="mr-2 rounded text-indigo-600 focus:ring-indigo-500">
@@ -176,32 +178,58 @@
                     保存する
                 </button>
             </div>
+            
+            <!-- AI解析中ローディング -->
+            <div id="loadingOverlay" class="absolute inset-0 bg-white/70 flex flex-col items-center justify-center z-10 hidden">
+                <i class="fas fa-circle-notch fa-spin text-4xl text-indigo-600 mb-2"></i>
+                <p class="font-bold text-indigo-800 animate-pulse">AIが画像を解析中...</p>
+                <p class="text-xs text-slate-500 mt-1">数秒お待ちください</p>
+            </div>
         </div>
     </div>
 
-    <!-- 設定モーダル（カテゴリ管理） -->
+    <!-- 設定モーダル -->
     <div id="settingsModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
-            <div class="bg-slate-800 p-4 text-white flex justify-between items-center">
-                <h2 class="font-bold">カテゴリ管理</h2>
+        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div class="bg-slate-800 p-4 text-white flex justify-between items-center shrink-0">
+                <h2 class="font-bold">設定</h2>
                 <button onclick="closeSettingsModal()" class="hover:text-slate-300"><i class="fas fa-times"></i></button>
             </div>
-            <div class="p-4">
+            <div class="p-4 overflow-y-auto">
+                
+                <!-- AI設定セクション -->
+                <h3 class="font-bold text-sm text-slate-700 mb-2 border-b pb-1"><i class="fas fa-key"></i> Gemini API設定</h3>
+                <div class="bg-indigo-50 p-3 rounded text-sm mb-6">
+                    <p class="text-xs text-slate-500 mb-2">
+                        AIスキャン機能を使用するには、GoogleのGemini APIキー（無料）が必要です。<br>
+                        <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-indigo-600 underline font-bold">こちらからキーを取得</a>して入力してください。
+                    </p>
+                    <input type="password" id="geminiApiKey" class="w-full p-2 border rounded text-xs mb-2 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="AIzaSy...">
+                    <button onclick="saveApiKey()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded font-bold transition text-xs">
+                        キーを保存
+                    </button>
+                </div>
+
+                <!-- カテゴリ管理セクション -->
+                <h3 class="font-bold text-sm text-slate-700 mb-2 border-b pb-1">カテゴリ管理</h3>
                 <div class="flex gap-2 mb-4">
                     <input type="text" id="newCategoryName" class="flex-1 p-2 border rounded focus:ring-2 focus:ring-slate-500 outline-none" placeholder="新しいカテゴリ名">
                     <button onclick="addCategory()" class="bg-slate-700 hover:bg-slate-600 text-white px-4 rounded transition">追加</button>
                 </div>
-                <div class="max-h-60 overflow-y-auto">
-                    <ul id="categoryListSettings" class="space-y-2">
-                        <!-- JSでリスト生成 -->
-                    </ul>
+                <div class="max-h-40 overflow-y-auto mb-6">
+                    <ul id="categoryListSettings" class="space-y-2"></ul>
+                    <p class="text-xs text-slate-400 mt-2 text-right">※最大50個まで</p>
                 </div>
-                <p class="text-xs text-slate-400 mt-2 text-right">※最大50個まで</p>
+                
+                <div class="mt-4 pt-4 border-t text-xs text-slate-400 text-center">
+                    <p><i class="fas fa-hdd text-slate-500"></i> データは端末内に保存されます</p>
+                </div>
             </div>
         </div>
     </div>
 
-        <div id="dataModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm">
+    <!-- データ共有モーダル（復活の呪文） -->
+    <div id="dataModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
             <div class="bg-indigo-600 p-4 text-white flex justify-between items-center">
                 <h2 class="font-bold flex items-center gap-2"><i class="fas fa-scroll"></i> 管理情報の共有</h2>
@@ -237,7 +265,6 @@
             items: []
         };
 
-        // --- カテゴリごとの色定義（簡易ハッシュ）---
         const CATEGORY_COLORS = {
             '食材': 'bg-blue-100 text-blue-800 border-blue-200',
             '日常品': 'bg-purple-100 text-purple-800 border-purple-200',
@@ -247,21 +274,22 @@
 
         let currentFilter = 'all';
 
-        // --- 初期化処理 ---
         function init() {
             loadData();
+            // APIキーの読み込み
+            const savedKey = localStorage.getItem('ssm_gemini_api_key');
+            if(savedKey) document.getElementById('geminiApiKey').value = savedKey;
+
             renderCategories();
             renderItems();
             updateFormVisibility();
             
-            // イベントリスナー設定
             document.getElementById('sortPrimary').addEventListener('change', renderItems);
-            
-            // チェックボックス連動
             document.getElementById('lowStockNotify').addEventListener('change', updateFormVisibility);
             document.getElementById('replacementNotify').addEventListener('change', updateFormVisibility);
         }
 
+        // ローカルストレージ操作
         function loadData() {
             const stored = localStorage.getItem(STORAGE_KEY);
             if (stored) {
@@ -277,87 +305,52 @@
 
         function saveData() {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
-            renderItems(); // アラート再計算などのため
+            renderItems();
         }
 
         // --- ロジック系関数 ---
-
         function getCategoryColorClass(cat) {
             return CATEGORY_COLORS[cat] || DEFAULT_COLOR;
         }
 
-        // アラート判定
         function getAlerts(item) {
             const alerts = [];
             const today = new Date();
             today.setHours(0, 0, 0, 0);
 
-            // 1. 在庫0のアラート
             if (item.quantity === 0 && item.zeroAction === 'keep') {
                 alerts.push({ type: 'danger', msg: '在庫切れ' });
             }
-
-            // 2. 在庫僅少
             if (item.lowStockNotify && item.quantity > 0 && item.quantity <= item.lowStockThreshold) {
                 alerts.push({ type: 'warning', msg: '残りわずか' });
             }
-
-            // 3. 消費期限 (3日前)
             if (item.expiryDate) {
-                const expiry = new Date(item.expiryDate);
-                const diffTime = expiry - today;
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-                
-                if (diffDays < 0) {
-                    alerts.push({ type: 'danger', msg: '期限切れ' });
-                } else if (diffDays <= 3) {
-                    alerts.push({ type: 'warning', msg: `期限あと${diffDays}日` });
-                }
+                const diffDays = Math.ceil((new Date(item.expiryDate) - today) / (86400000));
+                if (diffDays < 0) alerts.push({ type: 'danger', msg: '期限切れ' });
+                else if (diffDays <= 3) alerts.push({ type: 'warning', msg: `期限あと${diffDays}日` });
             }
-
-            // 4. 交換時期
             if (item.replacementNotify && item.openDate) {
                 const openDate = new Date(item.openDate);
                 let targetDate = new Date(openDate);
-                let alertThresholdDays = 0;
-
-                if (item.replacementUnit === 'days') {
-                    targetDate.setDate(openDate.getDate() + parseInt(item.replacementValue));
-                    alertThresholdDays = 5;
-                } else if (item.replacementUnit === 'weeks') {
-                    targetDate.setDate(openDate.getDate() + (parseInt(item.replacementValue) * 7));
-                    alertThresholdDays = 7;
-                } else if (item.replacementUnit === 'months') {
-                    targetDate.setMonth(openDate.getMonth() + parseInt(item.replacementValue));
-                    alertThresholdDays = 30; // 1ヶ月前
-                }
-
-                const diffTime = targetDate - today;
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-                if (diffDays <= alertThresholdDays) {
-                    const msg = diffDays < 0 ? '交換推奨(経過)' : 'もうすぐ交換';
-                    alerts.push({ type: 'info', msg: msg });
-                }
+                let thr = 0;
+                if (item.replacementUnit === 'days') { targetDate.setDate(openDate.getDate() + parseInt(item.replacementValue)); thr = 5; }
+                else if (item.replacementUnit === 'weeks') { targetDate.setDate(openDate.getDate() + (parseInt(item.replacementValue)*7)); thr = 7; }
+                else if (item.replacementUnit === 'months') { targetDate.setMonth(openDate.getMonth() + parseInt(item.replacementValue)); thr = 30; }
+                
+                const diffDays = Math.ceil((targetDate - today) / 86400000);
+                if (diffDays <= thr) alerts.push({ type: 'info', msg: diffDays < 0 ? '交換推奨(経過)' : 'もうすぐ交換' });
             }
-
             return alerts;
         }
 
         // --- 表示系関数 ---
-
         function renderCategories() {
             const container = document.getElementById('categoryFilters');
             const select = document.getElementById('itemCategory');
             const listSettings = document.getElementById('categoryListSettings');
 
-            // フィルタ用HTML
             let filterHtml = `<button onclick="setFilter('all')" class="category-chip px-4 py-1.5 rounded-full text-sm font-bold transition border ${currentFilter === 'all' ? 'bg-slate-800 text-white border-slate-800 active' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}">すべて</button>`;
-            
-            // セレクトボックス用HTML
             let selectHtml = `<option value="" disabled selected>選択してください</option>`;
-            
-            // 設定リスト用HTML
             let settingsHtml = '';
 
             appData.categories.forEach(cat => {
@@ -365,19 +358,9 @@
                 const activeClass = isActive ? 'ring-2 ring-indigo-500 ring-offset-1' : '';
                 const colorClass = getCategoryColorClass(cat);
                 
-                // フィルタ
                 filterHtml += `<button onclick="setFilter('${cat}')" class="category-chip px-3 py-1.5 rounded-full text-sm font-medium transition border ${activeClass} ${colorClass} bg-opacity-50 hover:bg-opacity-100">${cat}</button>`;
-                
-                // セレクト
                 selectHtml += `<option value="${cat}">${cat}</option>`;
-
-                // 設定リスト
-                settingsHtml += `
-                    <li class="flex justify-between items-center bg-slate-50 p-2 rounded border">
-                        <span>${cat}</span>
-                        ${DEFAULT_CATEGORIES.includes(cat) ? '<span class="text-xs text-slate-400">固定</span>' : `<button onclick="deleteCategory('${cat}')" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>`}
-                    </li>
-                `;
+                settingsHtml += `<li class="flex justify-between items-center bg-slate-50 p-2 rounded border"><span>${cat}</span>${DEFAULT_CATEGORIES.includes(cat) ? '<span class="text-xs text-slate-400">固定</span>' : `<button onclick="deleteCategory('${cat}')" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>`}</li>`;
             });
 
             container.innerHTML = filterHtml;
@@ -387,7 +370,7 @@
 
         function setFilter(cat) {
             currentFilter = cat;
-            renderCategories(); // スタイル更新のため
+            renderCategories();
             renderItems();
         }
 
@@ -396,38 +379,19 @@
             const alertContainer = document.getElementById('alertSection');
             const sortMode = document.getElementById('sortPrimary').value;
 
-            // フィルタリング
             let filtered = appData.items.filter(item => currentFilter === 'all' || item.category === currentFilter);
 
-            // ソート
             filtered.sort((a, b) => {
-                // 条件1: 期限 (昇順: 早いほうが上)
                 if (sortMode === 'expiry') {
-                    const dateA = a.expiryDate ? new Date(a.expiryDate).getTime() : 9999999999999;
-                    const dateB = b.expiryDate ? new Date(b.expiryDate).getTime() : 9999999999999;
+                    const dateA = a.expiryDate ? new Date(a.expiryDate).getTime() : 9e13;
+                    const dateB = b.expiryDate ? new Date(b.expiryDate).getTime() : 9e13;
                     if (dateA !== dateB) return dateA - dateB;
                 }
-                // 条件2: 在庫数 (昇順: 少ないほうが上)
                 if (sortMode === 'stock') {
                     if (a.quantity !== b.quantity) return a.quantity - b.quantity;
                 }
-                
-                // デフォルト: 名前順など
                 return 0;
             });
-            // ソート条件が競合した場合（UI上で複数指定はできない仕様だが、ロジックとして）
-            // 上記if文構造で、sortModeの指定が優先され、次に進まない。
-            // 複合ソートが必要な場合:
-            if (sortMode === 'expiry') {
-                // 日付が同じなら在庫順にするなどのサブソート
-                 filtered.sort((a, b) => {
-                    const dateA = a.expiryDate ? new Date(a.expiryDate).getTime() : 9999999999999;
-                    const dateB = b.expiryDate ? new Date(b.expiryDate).getTime() : 9999999999999;
-                    if (dateA !== dateB) return dateA - dateB;
-                    return a.quantity - b.quantity; // サブ条件
-                });
-            }
-
 
             listContainer.innerHTML = '';
             alertContainer.innerHTML = '';
@@ -443,28 +407,15 @@
             filtered.forEach(item => {
                 const alerts = getAlerts(item);
                 if (alerts.length > 0) {
-                    alerts.forEach(a => {
-                        allAlerts.push({ item: item, ...a });
-                    });
+                    alerts.forEach(a => { allAlerts.push({ item: item, ...a }); });
                 }
 
                 const colorClass = getCategoryColorClass(item.category);
-                
-                // カードHTML生成
                 const card = document.createElement('div');
                 card.className = "bg-white rounded-xl shadow border border-slate-100 p-4 animate-fade-in relative overflow-hidden group";
                 
-                // アラートバッジ（カード内）
-                let badges = '';
-                alerts.forEach(a => {
-                    let badgeColor = 'bg-gray-500';
-                    if (a.type === 'danger') badgeColor = 'bg-red-500';
-                    if (a.type === 'warning') badgeColor = 'bg-amber-500';
-                    if (a.type === 'info') badgeColor = 'bg-sky-500';
-                    badges += `<span class="${badgeColor} text-white text-[10px] px-2 py-0.5 rounded-full mr-1">${a.msg}</span>`;
-                });
+                let badges = alerts.map(a => `<span class="${a.type==='danger'?'bg-red-500':a.type==='warning'?'bg-amber-500':'bg-sky-500'} text-white text-[10px] px-2 py-0.5 rounded-full mr-1">${a.msg}</span>`).join('');
 
-                // カードの内容
                 card.innerHTML = `
                     <div class="flex justify-between items-start mb-2">
                         <div>
@@ -474,14 +425,10 @@
                         </div>
                         <button onclick="editItem('${item.id}')" class="text-slate-300 hover:text-indigo-500 p-1"><i class="fas fa-edit"></i></button>
                     </div>
-                    
                     <div class="text-sm text-slate-500 space-y-1 mb-4">
-                        <div class="flex items-center gap-2">
-                            <i class="far fa-clock w-4 text-center"></i> 期限: ${item.expiryDate ? item.expiryDate : '--'}
-                        </div>
+                        <div class="flex items-center gap-2"><i class="far fa-clock w-4 text-center"></i> 期限: ${item.expiryDate || '--'}</div>
                         ${item.openDate ? `<div class="flex items-center gap-2"><i class="far fa-folder-open w-4 text-center"></i> 開封: ${item.openDate}</div>` : ''}
                     </div>
-
                     <div class="mt-auto bg-slate-50 p-3 rounded-lg">
                         <div class="flex justify-between items-baseline mb-2">
                             <span class="text-xs font-bold text-slate-400">在庫数</span>
@@ -497,7 +444,6 @@
                 listContainer.appendChild(card);
             });
 
-            // 画面上部のアラートエリア表示
             if (allAlerts.length > 0) {
                 alertContainer.classList.remove('hidden');
                 alertContainer.innerHTML = `
@@ -512,10 +458,9 @@
         }
 
         // --- 操作系関数 ---
-
         function openItemModal(itemId = null) {
             const modal = document.getElementById('itemModal');
-            const title = document.getElementById('modalTitle');
+            document.getElementById('loadingOverlay').classList.add('hidden');
             
             // フォームリセット
             document.getElementById('itemId').value = '';
@@ -531,7 +476,6 @@
             document.getElementById('replacementValue').value = 1;
             document.getElementById('replacementUnit').value = 'days';
 
-            // オートコンプリート用のリスト更新
             const uniqueNames = [...new Set(appData.items.map(i => i.name))];
             const datalist = document.getElementById('nameSuggestions');
             datalist.innerHTML = uniqueNames.map(n => `<option value="${n}">`).join('');
@@ -539,7 +483,7 @@
             if (itemId) {
                 const item = appData.items.find(i => i.id === itemId);
                 if (item) {
-                    title.innerText = '在庫編集';
+                    document.getElementById('modalTitle').innerText = '在庫編集';
                     document.getElementById('itemId').value = item.id;
                     document.getElementById('itemName').value = item.name;
                     document.getElementById('itemCategory').value = item.category;
@@ -554,7 +498,7 @@
                     document.getElementById('replacementUnit').value = item.replacementUnit;
                 }
             } else {
-                title.innerText = '在庫登録';
+                document.getElementById('modalTitle').innerText = '在庫登録';
             }
             
             updateFormVisibility();
@@ -577,7 +521,6 @@
             const id = document.getElementById('itemId').value;
             const name = document.getElementById('itemName').value.trim();
             const category = document.getElementById('itemCategory').value;
-            // 変更: parseFloatで小数を扱えるようにする
             const quantity = parseFloat(document.getElementById('itemQuantity').value);
             const expiryDate = document.getElementById('itemExpiry').value || null;
             
@@ -586,14 +529,12 @@
                 return;
             }
 
-            // 重複チェック
-            // 編集モードでない、または名前が変わった場合にチェック
             const isEdit = !!id;
             let checkDuplicates = true;
             if (isEdit) {
                 const original = appData.items.find(i => i.id === id);
                 if (original && original.name === name && original.category === category) {
-                    checkDuplicates = false; // 名前もカテゴリも変わってないならチェック不要
+                    checkDuplicates = false; 
                 }
             }
 
@@ -615,7 +556,6 @@
                 openDate: document.getElementById('itemOpenDate').value || null,
                 zeroAction: document.querySelector('input[name="zeroAction"]:checked').value,
                 lowStockNotify: document.getElementById('lowStockNotify').checked,
-                // 変更: parseFloatで小数を扱えるようにする
                 lowStockThreshold: parseFloat(document.getElementById('lowStockThreshold').value),
                 replacementNotify: document.getElementById('replacementNotify').checked,
                 replacementValue: parseInt(document.getElementById('replacementValue').value),
@@ -631,7 +571,6 @@
 
             saveData();
             closeItemModal();
-            // 新規追加アイテムのカテゴリを表示するようにフィルタ変更（UX向上）
             if (!isEdit && currentFilter !== 'all' && currentFilter !== category) {
                 setFilter(category);
             }
@@ -645,13 +584,11 @@
             const item = appData.items.find(i => i.id === id);
             if (!item) return;
 
-            // 変更: 浮動小数点の計算誤差を防ぐため、一度整数にして計算する
             let newQuantity = (item.quantity * 100 + change * 100) / 100;
-
-            if (newQuantity < 0) return; // マイナスにはしない
+            if (newQuantity < 0) return;
 
             if (newQuantity === 0) {
-                if (change < 0) { // 消費アクションの場合のみ削除ロジック発動
+                if (change < 0) { 
                     if (item.zeroAction === 'delete') {
                         if (confirm(`「${item.name}」をリストから削除しますか？`)) {
                             appData.items = appData.items.filter(i => i.id !== id);
@@ -667,7 +604,6 @@
         }
 
         // --- カテゴリ管理 ---
-
         function openSettingsModal() {
             document.getElementById('settingsModal').classList.remove('hidden');
         }
@@ -691,25 +627,125 @@
             appData.categories.push(val);
             input.value = '';
             saveData();
-            renderCategories(); // フィルタと設定リスト更新
+            renderCategories();
         }
 
         function deleteCategory(cat) {
-            if (confirm(`カテゴリ「${cat}」を削除しますか？\n※このカテゴリに属する商品は削除されませんが、表示がおかしくなる可能性があります。`)) {
+            if (confirm(`カテゴリ「${cat}」を削除しますか？`)) {
                 appData.categories = appData.categories.filter(c => c !== cat);
-                // 属する商品のカテゴリをどうするか？今回はとりあえずそのまま（「未分類」扱い的なロジックが必要だが、仕様簡素化のため削除のみ）
-                // 実際の運用では「未分類」に移動させるなどの処理が望ましい
                 saveData();
                 renderCategories();
             }
         }
 
-        // --- 共有機能（復活の呪文） ---
+        // --- AI機能 (Gemini) ---
+        function saveApiKey() {
+            const key = document.getElementById('geminiApiKey').value.trim();
+            if(key) {
+                localStorage.setItem('ssm_gemini_api_key', key);
+                alert('APIキーを保存しました');
+            }
+        }
 
+        async function handleImageScan(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const apiKey = localStorage.getItem('ssm_gemini_api_key');
+            if (!apiKey) {
+                alert('Gemini APIキーが設定されていません。右上の「設定」から入力してください。');
+                return;
+            }
+
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+
+            try {
+                // 1. 画像の圧縮とBase64変換
+                const base64Image = await compressAndConvertToBase64(file);
+                
+                // 2. Gemini APIコール
+                const result = await callGeminiApi(apiKey, base64Image);
+                
+                // 3. 結果の反映
+                if (result) {
+                    if(result.name) document.getElementById('itemName').value = result.name;
+                    if(result.quantity) document.getElementById('itemQuantity').value = result.quantity;
+                    if(result.category && appData.categories.includes(result.category)) {
+                        document.getElementById('itemCategory').value = result.category;
+                    }
+                    if(result.expiry) document.getElementById('itemExpiry').value = result.expiry;
+                }
+            } catch (error) {
+                console.error("AI Error:", error);
+                alert("画像の解析に失敗しました: " + error.message);
+            } finally {
+                document.getElementById('loadingOverlay').classList.add('hidden');
+                input.value = ''; // Reset input
+            }
+        }
+
+        async function compressAndConvertToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.src = e.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 800;
+                        const scaleSize = MAX_WIDTH / img.width;
+                        canvas.width = MAX_WIDTH;
+                        canvas.height = img.height * scaleSize;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        // JPEG encoded base64 without prefix
+                        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                        resolve(dataUrl.split(',')[1]);
+                    };
+                    img.onerror = reject;
+                };
+                reader.onerror = reject;
+            });
+        }
+
+        async function callGeminiApi(apiKey, base64Image) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+            const prompt = `
+            この画像を分析し、商品の「名前」「個数」「カテゴリ」「消費期限」を特定してください。
+            カテゴリは[${appData.categories.join(',')}]の中から最も適切なものを選んでください。
+            JSON形式のみで返してください。
+            例: {"name": "牛乳", "quantity": 1, "category": "食材", "expiry": "2025-12-31"}
+            消費期限が見えない場合はexpiryはnullにしてください。
+            個数は整数または0.25単位の数値で。
+            `;
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [
+                            { text: prompt },
+                            { inline_data: { mime_type: "image/jpeg", data: base64Image } }
+                        ]
+                    }]
+                })
+            });
+
+            if (!response.ok) throw new Error(`API Error: ${response.status}`);
+            
+            const data = await response.json();
+            const text = data.candidates[0].content.parts[0].text;
+            // JSONブロックを取り出す
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            if (jsonMatch) return JSON.parse(jsonMatch[0]);
+            throw new Error("AIからの応答を解析できませんでした");
+        }
+
+        // --- 共有機能（復活の呪文） ---
         function openDataModal() {
-            // エクスポート文字列生成
             const json = JSON.stringify(appData);
-            // 日本語文字化け対策でBase64エンコード
             const spell = btoa(unescape(encodeURIComponent(json)));
             document.getElementById('exportString').value = spell;
             document.getElementById('importString').value = '';
@@ -722,105 +758,42 @@
 
         function copyExportString() {
             const input = document.getElementById('exportString');
-            
-            // テキストを選択（モバイル対応含む）
             input.select();
             input.setSelectionRange(0, 99999); 
-
             try {
-                // 推奨される方法（execCommand）をまず試行
-                const successful = document.execCommand('copy');
-                
-                if (successful) {
+                if (document.execCommand('copy')) {
                     showToast('クリップボードにコピーしました');
+                } else if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(input.value)
+                        .then(() => showToast('クリップボードにコピーしました'))
+                        .catch(err => showToast('コピーに失敗しました', true));
                 } else {
-                    // フォールバック: Clipboard API
-                    // iframe環境では動作しないことが多いが、念のため実装
-                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                         navigator.clipboard.writeText(input.value)
-                            .then(() => showToast('クリップボードにコピーしました'))
-                            .catch(err => {
-                                console.error('Async: Could not copy text: ', err);
-                                showToast('コピーに失敗しました。手動でコピーしてください', true);
-                            });
-                    } else {
-                        showToast('コピーに失敗しました。手動でコピーしてください', true);
-                    }
+                    showToast('コピーに失敗しました', true);
                 }
             } catch (err) {
-                console.error('Oops, unable to copy', err);
-                showToast('コピーに失敗しました。手動でコピーしてください', true);
+                showToast('コピーに失敗しました', true);
             }
         }
 
-        // シェア機能（コピーと同時にWeb Share API呼び出し）
         async function shareData() {
             const input = document.getElementById('exportString');
             const text = input.value;
             if (!text) return;
 
-            // 1. まずクリップボードにコピー
             input.select();
             input.setSelectionRange(0, 99999);
-            let copied = false;
             try {
-                if (document.execCommand('copy')) {
-                    copied = true;
-                } else if (navigator.clipboard && navigator.clipboard.writeText) {
-                    await navigator.clipboard.writeText(text);
-                    copied = true;
-                }
-            } catch (e) {
-                console.error('Copy failed during share', e);
-            }
-
-            // 2. Web Share API 呼び出し
-            if (navigator.share) {
-                try {
+                if (navigator.share) {
                     await navigator.share({
                         title: 'SSM在庫データ',
                         text: text
                     });
-                    // シェア画面が開くので、トーストは控えめにするか、シェア成功後に表示
-                } catch (err) {
-                    // ユーザーがキャンセルした場合など
-                    console.log('Share canceled or failed', err);
-                    if (copied) showToast('クリップボードにコピーしました');
-                }
-            } else {
-                // シェア非対応ブラウザの場合
-                if (copied) {
-                    showToast('コピーしました（シェア機能非対応ブラウザ）');
                 } else {
-                    showToast('コピーに失敗しました。手動でコピーしてください', true);
+                    copyExportString();
                 }
+            } catch (e) {
+                console.log('Share failed', e);
             }
-        }
-
-        // トースト通知機能
-        function showToast(message, isError = false) {
-            // 既存のトーストがあれば削除
-            const existingToast = document.getElementById('toast-notification');
-            if (existingToast) existingToast.remove();
-
-            const toast = document.createElement('div');
-            toast.id = 'toast-notification';
-            toast.className = `fixed bottom-10 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-full text-white font-bold shadow-lg transition-opacity duration-300 z-[100] ${isError ? 'bg-red-500' : 'bg-slate-800'}`;
-            toast.textContent = message;
-            toast.style.opacity = '0';
-
-            document.body.appendChild(toast);
-
-            // 表示アニメーション
-            requestAnimationFrame(() => {
-                toast.style.opacity = '1';
-            });
-
-            // 自動消去
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
         }
 
         function importData() {
@@ -842,8 +815,26 @@
                 }
             } catch (e) {
                 alert('呪文が間違っています（デコードエラー）');
-                console.error(e);
             }
+        }
+
+        // トースト通知機能
+        function showToast(message, isError = false) {
+            const existingToast = document.getElementById('toast-notification');
+            if (existingToast) existingToast.remove();
+
+            const toast = document.createElement('div');
+            toast.id = 'toast-notification';
+            toast.className = `fixed bottom-10 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-full text-white font-bold shadow-lg transition-opacity duration-300 z-[100] ${isError ? 'bg-red-500' : 'bg-slate-800'}`;
+            toast.textContent = message;
+            toast.style.opacity = '0';
+
+            document.body.appendChild(toast);
+            requestAnimationFrame(() => { toast.style.opacity = '1'; });
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
         }
 
         // 初期化実行
